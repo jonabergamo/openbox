@@ -1,8 +1,8 @@
-# Jukebox
+# Openbox
 
-A small Discord bot that plays music in a voice channel for me and a friend. You give it a YouTube link, a Spotify track, album or playlist, or just a few words to search, and it queues it up and plays it.
+A Discord music bot you host yourself. Give it a YouTube link, a Spotify track, album or playlist, or just a few words to search, and it joins your voice channel and plays it.
 
-I built it because every public music bot we used either got shut down or started asking for a subscription. We only need one server and two people, so a bot running on my own machine is enough.
+I built it because every public music bot my friend and I used either got shut down or started asking for a subscription. A bot for one server doesn't need any of that. It runs in a single Docker container on whatever machine you leave on, needs no database and no Spotify account, and only answers on your server.
 
 ## Commands
 
@@ -15,11 +15,11 @@ I built it because every public music bot we used either got shut down or starte
 | `/queue` | shows the next ten tracks |
 | `/nowplaying` | shows the current track and who asked for it |
 
-The bot leaves the channel after two minutes with nothing to play or nobody listening. It only answers on the server set in `GUILD_ID`.
+The bot leaves the channel after two minutes with nothing to play or nobody listening. It only answers on the server set in `GUILD_ID`, so each server runs its own copy.
 
 ## Running it
 
-You need Docker. Create an application at https://discord.com/developers/applications, add a bot to it and copy its token. The application ID is on the General Information page. Invite it with this link, replacing the ID.
+You need Docker and a machine that stays on. Create an application at https://discord.com/developers/applications, add a bot to it and copy its token. The application ID is on the General Information page. Invite it with this link, replacing the ID.
 
 ```
 https://discord.com/oauth2/authorize?client_id=<APP_ID>&scope=bot+applications.commands&permissions=3148800
@@ -28,6 +28,7 @@ https://discord.com/oauth2/authorize?client_id=<APP_ID>&scope=bot+applications.c
 Then fill in `.env` and start it.
 
 ```bash
+git clone https://github.com/jonabergamo/openbox.git && cd openbox
 cp .env.example .env
 docker compose up -d --build
 docker compose logs -f
@@ -54,4 +55,12 @@ YouTube sometimes answers with "sign in to confirm you're not a bot", mostly on 
 
 ## What's missing
 
-No shuffle, loop, volume or buttons yet. Very long Spotify playlists may come in cut short, since the embed page doesn't always list every song. And it only works on one server, which is the point.
+No shuffle, loop, volume or buttons yet. Very long Spotify playlists may come in cut short, since the embed page doesn't always list every song. Pull requests are welcome.
+
+## A note on YouTube
+
+Streaming from YouTube this way goes against YouTube's terms of service. Openbox is meant for your own server and your own friends. Don't run it as a public bot.
+
+## License
+
+MIT
