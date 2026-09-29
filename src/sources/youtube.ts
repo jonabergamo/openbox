@@ -20,7 +20,7 @@ function run(args: string[]) {
   });
 }
 
-type Info = {
+export type Info = {
   _type?: string;
   id: string;
   title: string;
@@ -30,19 +30,21 @@ type Info = {
   entries?: Info[];
 };
 
-export async function lookup(target: string, by: string, playlist = false): Promise<Track[]> {
-  const args = ["-J", playlist ? "--flat-playlist" : "--no-playlist", target];
-  const info: Info = JSON.parse(await run(args));
-  const items = info.entries ?? [info];
-
-  return items
+export function toTracks(info: Info, by: string): Track[] {
+  return (info.entries ?? [info])
     .filter((e) => e.title && e.title !== "[Private video]" && e.title !== "[Deleted video]")
     .map((e) => ({
       title: e.title,
       url: e.webpage_url ?? e.url ?? `https://www.youtube.com/watch?v=${e.id}`,
       duration: e.duration,
+      thumb: `https://i.ytimg.com/vi/${e.id}/hqdefault.jpg`,
       by,
     }));
+}
+
+export async function lookup(target: string, by: string, playlist = false) {
+  const args = ["-J", playlist ? "--flat-playlist" : "--no-playlist", target];
+  return toTracks(JSON.parse(await run(args)), by);
 }
 
 export function stream(target: string) {

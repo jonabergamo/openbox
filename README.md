@@ -13,7 +13,7 @@ I built it because every public music bot my friend and I used either got shut d
 | `/pause` and `/resume` | pause and resume |
 | `/stop` | stops and clears the queue |
 | `/queue` | shows the next ten tracks |
-| `/nowplaying` | shows the current track and who asked for it |
+| `/nowplaying` | shows a card with the current track, its link and who asked for it |
 
 The bot leaves the channel after two minutes with nothing to play or nobody listening. It only answers on the server set in `GUILD_ID`, so each server runs its own copy.
 

@@ -6,7 +6,7 @@ import {
 } from "discord.js";
 import { Queue, queues } from "./player.ts";
 import { resolve } from "./sources/resolve.ts";
-import { fmt } from "./track.ts";
+import { card, fmt, type Track } from "./track.ts";
 
 type Handler = (i: ChatInputCommandInteraction) => Promise<unknown>;
 
@@ -29,6 +29,9 @@ function queueOf(i: ChatInputCommandInteraction) {
   return q;
 }
 
+// angle brackets keep discord from unfurling every link in the list
+const link = (t: Track) => (t.url ? `[${t.title}](<${t.url}>)` : t.title);
+
 export const handlers: Record<string, Handler> = {
   async play(i) {
     const voice = (i.member as GuildMember).voice.channel;
@@ -40,14 +43,15 @@ export const handlers: Record<string, Handler> = {
     if (!tracks.length) return i.editReply("Found nothing for that.");
 
     const q = queues.get(i.guildId!) ?? (await Queue.join(voice, i.channel));
-    const started = q.add(tracks);
+    const started = await q.add(tracks);
+    const now = started ? q.current : undefined;
 
-    const first = tracks[0];
     if (tracks.length > 1) {
-      const lead = started ? `Playing **${first.title}**` : "Queued";
-      return i.editReply(`${lead}, ${tracks.length} tracks added.`);
+      const content = `${tracks.length} tracks added.`;
+      return i.editReply(now ? { content, embeds: [card(now, "Now playing")] } : content);
     }
-    return i.editReply(started ? `Playing **${first.title}**` : `Queued **${first.title}** at #${q.tracks.length}`);
+    if (started && !now) return i.editReply(`Couldn't play **${tracks[0].title}**.`);
+    return i.editReply({ embeds: [now ? card(now, "Now playing") : card(tracks[0], `Queued #${q.tracks.length}`)] });
   },
 
   async skip(i) {
@@ -76,8 +80,8 @@ export const handlers: Record<string, Handler> = {
     const q = queueOf(i);
     if (!q.current) return i.reply("The queue is empty.");
 
-    const lines = [`Now **${q.current.title}** (${fmt(q.current.duration)})`];
-    q.tracks.slice(0, 10).forEach((t, n) => lines.push(`${n + 1}. ${t.title} (${fmt(t.duration)}) by ${t.by}`));
+    const lines = [`Now **${link(q.current)}** (${fmt(q.current.duration)})`];
+    q.tracks.slice(0, 10).forEach((t, n) => lines.push(`${n + 1}. ${link(t)} (${fmt(t.duration)}) by ${t.by}`));
     if (q.tracks.length > 10) lines.push(`and ${q.tracks.length - 10} more`);
     return i.reply(lines.join("\n"));
   },
@@ -85,6 +89,6 @@ export const handlers: Record<string, Handler> = {
   async nowplaying(i) {
     const t = queueOf(i).current;
     if (!t) return i.reply("Nothing is playing.");
-    return i.reply(`**${t.title}** (${fmt(t.duration)}), asked by ${t.by}${t.url ? `\n<${t.url}>` : ""}`);
+    return i.reply({ embeds: [card(t, "Now playing")] });
   },
 };

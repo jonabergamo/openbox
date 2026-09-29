@@ -10,8 +10,8 @@ import {
   type VoiceConnection,
 } from "@discordjs/voice";
 import type { SendableChannels, VoiceBasedChannel } from "discord.js";
-import { stream } from "./sources/youtube.ts";
-import type { Track } from "./track.ts";
+import { lookup, stream } from "./sources/youtube.ts";
+import { card, type Track } from "./track.ts";
 
 const IDLE_MS = 2 * 60_000;
 
@@ -69,21 +69,30 @@ export class Queue {
     return q;
   }
 
-  // returns true when the first added track started right away
-  add(tracks: Track[]) {
+  // resolves to true when playback started right away
+  async add(tracks: Track[]) {
     this.tracks.push(...tracks);
     if (this.current) return false;
-    this.next(false);
+    await this.next(false);
     return true;
   }
 
+  // while a spotify track is still being looked up the player is idle,
+  // so stopping it wouldn't fire the Idle event that moves the queue
+  private get looking() {
+    return this.player.state.status === AudioPlayerStatus.Idle;
+  }
+
   skip() {
-    this.player.stop(true);
+    if (this.looking) this.next(true);
+    else this.player.stop(true);
   }
 
   stop() {
     this.tracks = [];
-    this.player.stop(true);
+    if (!this.looking) return this.player.stop(true);
+    this.current = undefined;
+    this.leaveSoon();
   }
 
   alone() {
@@ -108,7 +117,7 @@ export class Queue {
     queues.delete(this.voice.guild.id);
   }
 
-  private next(announce: boolean) {
+  private async next(announce: boolean): Promise<void> {
     if (this.dead) return;
     this.proc?.kill();
     this.proc = undefined;
@@ -117,7 +126,19 @@ export class Queue {
     this.current = t;
     if (!t) return this.leaveSoon();
 
-    const proc = stream(t.url ?? `ytsearch1:${t.query}`);
+    if (!t.url) {
+      const [hit] = await lookup(`ytsearch1:${t.query}`, t.by, true).catch(() => []);
+      if (this.dead || this.current !== t) return;
+      if (!hit) {
+        if (announce) this.text.send(`Couldn't find **${t.title}** on YouTube, skipping.`).catch(() => {});
+        return this.next(announce);
+      }
+      t.url = hit.url;
+      t.thumb = hit.thumb;
+      t.duration = hit.duration ?? t.duration;
+    }
+
+    const proc = stream(t.url!);
     this.proc = proc;
 
     let err = "";
@@ -131,6 +152,6 @@ export class Queue {
     });
 
     this.player.play(createAudioResource(proc.stdout!, { inputType: StreamType.Arbitrary }));
-    if (announce) this.text.send(`Now playing **${t.title}**`).catch(() => {});
+    if (announce) this.text.send({ embeds: [card(t, "Now playing")] }).catch(() => {});
   }
 }
