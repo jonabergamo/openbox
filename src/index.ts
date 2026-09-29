@@ -45,7 +45,7 @@ client.on(Events.InteractionCreate, async (i) => {
 client.on(Events.MessageCreate, async (msg) => {
   if (msg.author.bot || msg.guildId !== cfg.guildId || !msg.member) return;
 
-  const parsed = parseText(msg.content);
+  const parsed = parseText(msg.content, cfg.prefix);
   if (!parsed) return;
 
   const channel = msg.channel.isSendable() ? msg.channel : null;

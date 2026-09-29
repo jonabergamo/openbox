@@ -98,9 +98,12 @@ export const actions: Record<string, (c: Ctx) => Promise<Reply>> = {
 
 const aliases: Record<string, string> = { p: "play", s: "skip", q: "queue", np: "nowplaying" };
 
-// "p!play x" or "p!p x" typed as a normal message
-export function parseText(content: string) {
-  const m = content.trim().match(/^p!(\w+)(?:\s+(.*))?$/is);
+// ".play x" or ".p x" typed as a normal message
+export function parseText(content: string, prefix: string) {
+  const s = content.trim();
+  if (!s.toLowerCase().startsWith(prefix.toLowerCase())) return;
+
+  const m = s.slice(prefix.length).match(/^(\w+)(?:\s+(.*))?$/s);
   if (!m) return;
   const name = m[1].toLowerCase();
   const cmd = aliases[name] ?? name;

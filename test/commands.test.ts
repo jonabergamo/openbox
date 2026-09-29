@@ -2,22 +2,28 @@ import { describe, expect, it } from "vitest";
 import { parseText } from "../src/commands.ts";
 
 describe("parseText", () => {
-  it("reads commands with the p! prefix", () => {
-    expect(parseText("p!play never gonna give you up")).toEqual({ cmd: "play", arg: "never gonna give you up" });
-    expect(parseText("  P!Skip ")).toEqual({ cmd: "skip", arg: "" });
+  it("reads commands with the prefix", () => {
+    expect(parseText(".play never gonna give you up", ".")).toEqual({ cmd: "play", arg: "never gonna give you up" });
+    expect(parseText("  .Skip ", ".")).toEqual({ cmd: "skip", arg: "" });
   });
 
   it("expands short names", () => {
-    expect(parseText("p!p https://youtu.be/x")).toEqual({ cmd: "play", arg: "https://youtu.be/x" });
-    expect(parseText("p!np")).toEqual({ cmd: "nowplaying", arg: "" });
-    expect(parseText("p!q")).toEqual({ cmd: "queue", arg: "" });
+    expect(parseText(".p https://youtu.be/x", ".")).toEqual({ cmd: "play", arg: "https://youtu.be/x" });
+    expect(parseText(".np", ".")).toEqual({ cmd: "nowplaying", arg: "" });
+    expect(parseText(".q", ".")).toEqual({ cmd: "queue", arg: "" });
+  });
+
+  it("works with longer prefixes", () => {
+    expect(parseText("P!p song", "p!")).toEqual({ cmd: "play", arg: "song" });
+    expect(parseText(".p song", "p!")).toBeUndefined();
   });
 
   it("ignores normal chat and unknown commands", () => {
-    expect(parseText("play something")).toBeUndefined();
-    expect(parseText("!play something")).toBeUndefined();
-    expect(parseText("p!dance")).toBeUndefined();
-    expect(parseText("p!toString")).toBeUndefined();
-    expect(parseText("hey p!play")).toBeUndefined();
+    expect(parseText("play something", ".")).toBeUndefined();
+    expect(parseText("...", ".")).toBeUndefined();
+    expect(parseText(". p song", ".")).toBeUndefined();
+    expect(parseText(".dance", ".")).toBeUndefined();
+    expect(parseText(".toString", ".")).toBeUndefined();
+    expect(parseText("hey .play", ".")).toBeUndefined();
   });
 });
