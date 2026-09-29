@@ -15,11 +15,13 @@ I built it because every public music bot my friend and I used either got shut d
 | `/queue` | shows the next ten tracks |
 | `/nowplaying` | shows a card with the current track, its link and who asked for it |
 
+Every command also works as a normal chat message with the `p!` prefix, which is quicker than picking the slash command from the menu. `p!play daft punk` or just `p!p daft punk`, and `p!s`, `p!q` and `p!np` for skip, queue and now playing.
+
 The bot leaves the channel after two minutes with nothing to play or nobody listening. It only answers on the server set in `GUILD_ID`, so each server runs its own copy.
 
 ## Running it
 
-You need Docker and a machine that stays on. Create an application at https://discord.com/developers/applications, add a bot to it and copy its token. The application ID is on the General Information page. Invite it with this link, replacing the ID.
+You need Docker and a machine that stays on. Create an application at https://discord.com/developers/applications, add a bot to it and copy its token. On the same Bot page turn on Message Content Intent, since the `p!` commands need to read messages. The application ID is on the General Information page. Invite it with this link, replacing the ID.
 
 ```
 https://discord.com/oauth2/authorize?client_id=<APP_ID>&scope=bot+applications.commands&permissions=3148800

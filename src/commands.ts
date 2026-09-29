@@ -1,14 +1,17 @@
-import {
-  MessageFlags,
-  SlashCommandBuilder,
-  type ChatInputCommandInteraction,
-  type GuildMember,
-} from "discord.js";
+import { SlashCommandBuilder, type EmbedBuilder, type GuildMember, type SendableChannels } from "discord.js";
 import { Queue, queues } from "./player.ts";
 import { resolve } from "./sources/resolve.ts";
 import { card, fmt, type Track } from "./track.ts";
 
-type Handler = (i: ChatInputCommandInteraction) => Promise<unknown>;
+// what a command needs, whether it came from a slash command or a chat message
+export type Ctx = {
+  guildId: string;
+  member: GuildMember;
+  channel: SendableChannels | null;
+  arg: string;
+};
+
+export type Reply = string | { content?: string; embeds: EmbedBuilder[] };
 
 export const defs = [
   new SlashCommandBuilder()
@@ -23,8 +26,8 @@ export const defs = [
   new SlashCommandBuilder().setName("nowplaying").setDescription("Show the current track"),
 ].map((c) => c.toJSON());
 
-function queueOf(i: ChatInputCommandInteraction) {
-  const q = queues.get(i.guildId!);
+function queueOf(c: Ctx) {
+  const q = queues.get(c.guildId);
   if (!q) throw new Error("Nothing is playing.");
   return q;
 }
@@ -32,63 +35,75 @@ function queueOf(i: ChatInputCommandInteraction) {
 // angle brackets keep discord from unfurling every link in the list
 const link = (t: Track) => (t.url ? `[${t.title}](<${t.url}>)` : t.title);
 
-export const handlers: Record<string, Handler> = {
-  async play(i) {
-    const voice = (i.member as GuildMember).voice.channel;
-    if (!voice) return i.reply({ content: "Join a voice channel first.", flags: MessageFlags.Ephemeral });
-    if (!i.channel?.isSendable()) return i.reply({ content: "I can't post in this channel.", flags: MessageFlags.Ephemeral });
+export const actions: Record<string, (c: Ctx) => Promise<Reply>> = {
+  async play(c) {
+    if (!c.arg) throw new Error("Tell me what to play.");
+    const voice = c.member.voice.channel;
+    if (!voice) throw new Error("Join a voice channel first.");
+    if (!c.channel) throw new Error("I can't post in this channel.");
 
-    await i.deferReply();
-    const tracks = await resolve(i.options.getString("query", true), i.user.displayName);
-    if (!tracks.length) return i.editReply("Found nothing for that.");
+    const tracks = await resolve(c.arg, c.member.displayName);
+    if (!tracks.length) return "Found nothing for that.";
 
-    const q = queues.get(i.guildId!) ?? (await Queue.join(voice, i.channel));
+    const q = queues.get(c.guildId) ?? (await Queue.join(voice, c.channel));
     const started = await q.add(tracks);
     const now = started ? q.current : undefined;
 
     if (tracks.length > 1) {
       const content = `${tracks.length} tracks added.`;
-      return i.editReply(now ? { content, embeds: [card(now, "Now playing")] } : content);
+      return now ? { content, embeds: [card(now, "Now playing")] } : content;
     }
-    if (started && !now) return i.editReply(`Couldn't play **${tracks[0].title}**.`);
-    return i.editReply({ embeds: [now ? card(now, "Now playing") : card(tracks[0], `Queued #${q.tracks.length}`)] });
+    if (started && !now) return `Couldn't play **${tracks[0].title}**.`;
+    return { embeds: [now ? card(now, "Now playing") : card(tracks[0], `Queued #${q.tracks.length}`)] };
   },
 
-  async skip(i) {
-    const q = queueOf(i);
+  async skip(c) {
+    const q = queueOf(c);
     const t = q.current;
     q.skip();
-    return i.reply(t ? `Skipped **${t.title}**` : "Nothing to skip.");
+    return t ? `Skipped **${t.title}**` : "Nothing to skip.";
   },
 
-  async pause(i) {
-    queueOf(i).player.pause();
-    return i.reply("Paused.");
+  async pause(c) {
+    queueOf(c).player.pause();
+    return "Paused.";
   },
 
-  async resume(i) {
-    queueOf(i).player.unpause();
-    return i.reply("Resumed.");
+  async resume(c) {
+    queueOf(c).player.unpause();
+    return "Resumed.";
   },
 
-  async stop(i) {
-    queueOf(i).stop();
-    return i.reply("Stopped and cleared the queue.");
+  async stop(c) {
+    queueOf(c).stop();
+    return "Stopped and cleared the queue.";
   },
 
-  async queue(i) {
-    const q = queueOf(i);
-    if (!q.current) return i.reply("The queue is empty.");
+  async queue(c) {
+    const q = queueOf(c);
+    if (!q.current) return "The queue is empty.";
 
     const lines = [`Now **${link(q.current)}** (${fmt(q.current.duration)})`];
     q.tracks.slice(0, 10).forEach((t, n) => lines.push(`${n + 1}. ${link(t)} (${fmt(t.duration)}) by ${t.by}`));
     if (q.tracks.length > 10) lines.push(`and ${q.tracks.length - 10} more`);
-    return i.reply(lines.join("\n"));
+    return lines.join("\n");
   },
 
-  async nowplaying(i) {
-    const t = queueOf(i).current;
-    if (!t) return i.reply("Nothing is playing.");
-    return i.reply({ embeds: [card(t, "Now playing")] });
+  async nowplaying(c) {
+    const t = queueOf(c).current;
+    if (!t) return "Nothing is playing.";
+    return { embeds: [card(t, "Now playing")] };
   },
 };
+
+const aliases: Record<string, string> = { p: "play", s: "skip", q: "queue", np: "nowplaying" };
+
+// "p!play x" or "p!p x" typed as a normal message
+export function parseText(content: string) {
+  const m = content.trim().match(/^p!(\w+)(?:\s+(.*))?$/is);
+  if (!m) return;
+  const name = m[1].toLowerCase();
+  const cmd = aliases[name] ?? name;
+  if (!Object.hasOwn(actions, cmd)) return;
+  return { cmd, arg: m[2]?.trim() ?? "" };
+}
