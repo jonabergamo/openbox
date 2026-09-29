@@ -10,7 +10,7 @@ import {
   type VoiceConnection,
 } from "@discordjs/voice";
 import type { SendableChannels, VoiceBasedChannel } from "discord.js";
-import { lookup, stream } from "./sources/youtube.ts";
+import { findSong, stream } from "./sources/youtube.ts";
 import { card, type Track } from "./track.ts";
 
 const IDLE_MS = 2 * 60_000;
@@ -127,7 +127,7 @@ export class Queue {
     if (!t) return this.leaveSoon();
 
     if (!t.url) {
-      const [hit] = await lookup(`ytsearch1:${t.query}`, t.by, true).catch(() => []);
+      const hit = await findSong(t.query!, t.by).catch(() => undefined);
       if (this.dead || this.current !== t) return;
       if (!hit) {
         if (announce) this.text.send(`Couldn't find **${t.title}** on YouTube, skipping.`).catch(() => {});

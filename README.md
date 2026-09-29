@@ -42,7 +42,7 @@ The slash commands are registered on the server every time the bot starts, so th
 
 Everything plays from YouTube through yt-dlp. The audio is piped straight into ffmpeg and sent to Discord, nothing is saved to disk.
 
-Spotify doesn't let apps stream its audio, so a Spotify link only gives me names. And since the February 2026 API changes a developer app can only read the contents of playlists its owner made. So instead of the API the bot reads the public embed page Spotify serves for every track, album and playlist, takes artist and title for each song and searches YouTube for it once it reaches the front of the queue. A 50 song playlist queues instantly and no Spotify account is needed. The catch is that the match is a search, so now and then you get a live version or a cover.
+Spotify doesn't let apps stream its audio, so a Spotify link only gives me names. And since the February 2026 API changes a developer app can only read the contents of playlists its owner made. So instead of the API the bot reads the public embed page Spotify serves for every track, album and playlist, takes artist and title for each song and looks it up once it reaches the front of the queue. A 50 song playlist queues instantly and no Spotify account is needed. The lookup searches the songs tab of YouTube Music, which returns the label's own audio upload, the same studio master Spotify plays, rather than a music video with an intro. If that finds nothing it falls back to a normal YouTube search.
 
 The container updates yt-dlp every time it starts, because YouTube changes things often enough that an old copy stops working within weeks.
 
